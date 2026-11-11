@@ -122,6 +122,10 @@ struct WebviewHttpAuthRequest {
 struct WebviewSslAuthError {
   std::string url;
   COREWEBVIEW2_WEB_ERROR_STATUS status;
+  // PEM of the server (leaf) certificate; empty when unavailable.
+  std::string certificate_pem;
+  // PEM of the issuer chain as sent by the server, leaf excluded.
+  std::vector<std::string> issuer_chain_pem;
 };
 
 struct VirtualKeyState {

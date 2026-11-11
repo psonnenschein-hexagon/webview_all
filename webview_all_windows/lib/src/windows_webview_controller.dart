@@ -838,8 +838,15 @@ class WindowsWebViewController extends PlatformWebViewController
     _webviewController.setSslAuthErrorRequestedDelegate((
       String url,
       int errorStatus,
+      String certificatePem,
+      List<String> issuerChainPem,
     ) {
-      return weakThis.target?._handleSslAuthError(url, errorStatus);
+      return weakThis.target?._handleSslAuthError(
+        url,
+        errorStatus,
+        certificatePem,
+        issuerChainPem,
+      );
     });
     await _webviewController.setPopupWindowPolicy(
       switch (_windowsParams.popupWindowPolicy) {
@@ -1575,6 +1582,8 @@ class WindowsWebViewController extends PlatformWebViewController
   Future<Map<String, Object?>?> _handleSslAuthError(
     String url,
     int errorStatus,
+    String certificatePem,
+    List<String> issuerChainPem,
   ) async {
     final callback = _currentNavigationDelegate?._onSslAuthError;
     if (callback == null) {
@@ -1587,6 +1596,9 @@ class WindowsWebViewController extends PlatformWebViewController
       callback(
         WindowsPlatformSslAuthError(
           description: _sslAuthErrorDescription(url, status),
+          url: url,
+          certificatePem: certificatePem,
+          issuerChainPem: issuerChainPem,
           onProceed: () async {
             if (!completer.isCompleted) {
               completer.complete(<String, Object?>{'action': 'proceed'});
@@ -2951,9 +2963,38 @@ class WindowsPlatformSslAuthError extends PlatformSslAuthError {
     required String description,
     required Future<void> Function() onProceed,
     required Future<void> Function() onCancel,
+    this.url = '',
+    this.certificatePem = '',
+    this.issuerChainPem = const <String>[],
   }) : _onProceed = onProceed,
        _onCancel = onCancel,
-       super(certificate: null, description: description);
+       super(
+         certificate: _derFromPem(certificatePem),
+         description: description,
+       );
+
+  /// The URL whose server certificate failed validation.
+  final String url;
+
+  /// PEM of the server (leaf) certificate; empty when unavailable.
+  final String certificatePem;
+
+  /// PEM of the issuer chain presented by the server (leaf excluded).
+  final List<String> issuerChainPem;
+
+  static X509Certificate? _derFromPem(String pem) {
+    final body = pem
+        .replaceAll(RegExp(r'-----(BEGIN|END) CERTIFICATE-----'), '')
+        .replaceAll(RegExp(r'\s'), '');
+    if (body.isEmpty) {
+      return null;
+    }
+    try {
+      return X509Certificate(data: base64.decode(body));
+    } on FormatException {
+      return null;
+    }
+  }
 
   final Future<void> Function() _onProceed;
   final Future<void> Function() _onCancel;

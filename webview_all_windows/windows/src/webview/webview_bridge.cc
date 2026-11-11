@@ -920,9 +920,15 @@ void WebviewBridge::OnHttpAuthRequested(
 void WebviewBridge::OnSslAuthError(
     const WebviewSslAuthError &error,
     Webview::WebviewSslAuthErrorCompleter completer) {
+  flutter::EncodableList issuer_chain;
+  for (const auto &pem : error.issuer_chain_pem) {
+    issuer_chain.push_back(flutter::EncodableValue(pem));
+  }
   auto args = std::make_unique<flutter::EncodableValue>(flutter::EncodableMap{
       {"url", error.url},
       {"errorStatus", static_cast<int>(error.status)},
+      {"certificatePem", error.certificate_pem},
+      {"issuerChainPem", std::move(issuer_chain)},
   });
 
   method_channel_->InvokeMethod(

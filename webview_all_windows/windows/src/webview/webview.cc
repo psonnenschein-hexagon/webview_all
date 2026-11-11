@@ -979,8 +979,36 @@ void Webview::RegisterEventHandlers() {
               args->AddRef();
               error_args.attach(args);
 
+              WebviewSslAuthError ssl_error{
+                  util::Utf8FromUtf16(request_uri.get()), status, {}, {}};
+              wil::com_ptr<ICoreWebView2Certificate> server_certificate;
+              if (SUCCEEDED(args->get_ServerCertificate(
+                      server_certificate.put())) &&
+                  server_certificate) {
+                wil::unique_cotaskmem_string leaf_pem;
+                if (SUCCEEDED(server_certificate->ToPemEncoding(
+                        &leaf_pem)) &&
+                    leaf_pem) {
+                  ssl_error.certificate_pem = util::Utf8FromUtf16(leaf_pem.get());
+                }
+                wil::com_ptr<ICoreWebView2StringCollection> chain;
+                UINT32 chain_count = 0;
+                if (SUCCEEDED(server_certificate
+                                  ->get_PemEncodedIssuerCertificateChain(
+                                      chain.put())) &&
+                    chain && SUCCEEDED(chain->get_Count(&chain_count))) {
+                  for (UINT32 i = 0; i < chain_count; ++i) {
+                    wil::unique_cotaskmem_string item;
+                    if (SUCCEEDED(chain->GetValueAtIndex(i, &item)) && item) {
+                      ssl_error.issuer_chain_pem.push_back(
+                          util::Utf8FromUtf16(item.get()));
+                    }
+                  }
+                }
+              }
+
               ssl_auth_error_callback_(
-                  {util::Utf8FromUtf16(request_uri.get()), status},
+                  ssl_error,
                   [deferral = std::move(deferral),
                    error_args = std::move(error_args)](bool proceed) mutable {
                     error_args->put_Action(

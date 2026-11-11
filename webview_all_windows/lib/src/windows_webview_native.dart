@@ -103,7 +103,12 @@ typedef HttpAuthRequestedDelegate =
     FutureOr<Map<String, Object?>?> Function(String url, String challenge);
 
 typedef SslAuthErrorRequestedDelegate =
-    FutureOr<Map<String, Object?>?> Function(String url, int errorStatus);
+    FutureOr<Map<String, Object?>?> Function(
+      String url,
+      int errorStatus,
+      String certificatePem,
+      List<String> issuerChainPem,
+    );
 
 typedef ScriptID = String;
 
@@ -912,7 +917,14 @@ class WebviewController extends ValueNotifier<WebviewValue> {
       return null;
     }
 
-    return callback(url, errorStatus);
+    return callback(
+      url,
+      errorStatus,
+      (args['certificatePem'] as String?) ?? '',
+      ((args['issuerChainPem'] as List<dynamic>?) ?? const <dynamic>[])
+          .whereType<String>()
+          .toList(growable: false),
+    );
   }
 
   @override

@@ -1,3 +1,4 @@
+export 'src/windows_certificate_validator.dart';
 export 'src/windows_webview_cookie.dart';
 export 'src/windows_webview_controller.dart';
 export 'src/windows_webview_cookie_manager.dart';

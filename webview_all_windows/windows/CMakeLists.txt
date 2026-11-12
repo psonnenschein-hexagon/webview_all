@@ -61,6 +61,7 @@ set(PLUGIN_SOURCES
   "src/platform/winrt_runtime.cc"
   "src/util/direct3d11.interop.cc"
   "src/util/string_converter.cc"
+  "src/util/certificate_validator.cc"
 )
 
 add_library(${PLUGIN_NAME} SHARED ${PLUGIN_SOURCES})

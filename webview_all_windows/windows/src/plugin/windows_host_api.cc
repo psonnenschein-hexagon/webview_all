@@ -17,6 +17,7 @@
 #include <string>
 
 #include "plugin/environment_request.h"
+#include "util/certificate_validator.h"
 #include "util/logging.h"
 #include "util/string_converter.h"
 
@@ -184,6 +185,10 @@ WindowsHostApi::WindowsHostApi(flutter::TextureRegistrar *textures,
             call.method_name() == "requestProfileDeletion") {
           state->owner->HandleProfileMethod(call, std::move(result)); return;
         }
+        if (call.method_name() == "validateCertificateChain") {
+          state->owner->HandleValidateCertificateChain(call, std::move(result));
+          return;
+        }
         if (call.method_name() != "attachNewWindow") {
           result->NotImplemented();
           return;
@@ -261,6 +266,46 @@ WindowsHostApi::WindowsHostApi(flutter::TextureRegistrar *textures,
                 reply->Success(flutter::EncodableValue(outcome.supported));
             });
       });
+}
+
+void WindowsHostApi::HandleValidateCertificateChain(
+    const flutter::MethodCall<flutter::EncodableValue> &call,
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+  const auto *args = call.arguments()
+                         ? std::get_if<flutter::EncodableMap>(call.arguments())
+                         : nullptr;
+  if (!args) {
+    result->Error("invalid_argument", "Validation arguments are required.");
+    return;
+  }
+  auto string_arg = [args](const char *name) {
+    const auto it = args->find(flutter::EncodableValue(name));
+    const auto *value =
+        it == args->end() ? nullptr : std::get_if<std::string>(&it->second);
+    return value ? *value : std::string();
+  };
+  auto list_arg = [args](const char *name) {
+    std::vector<std::string> out;
+    const auto it = args->find(flutter::EncodableValue(name));
+    const auto *list = it == args->end()
+                           ? nullptr
+                           : std::get_if<flutter::EncodableList>(&it->second);
+    if (list) {
+      for (const auto &item : *list) {
+        if (const auto *s = std::get_if<std::string>(&item)) out.push_back(*s);
+      }
+    }
+    return out;
+  };
+  const auto outcome = ValidateServerCertificate(
+      string_arg("certificatePem"), list_arg("intermediatesPem"),
+      list_arg("rootsPem"), string_arg("host"));
+  result->Success(flutter::EncodableValue(flutter::EncodableMap{
+      {flutter::EncodableValue("trusted"),
+       flutter::EncodableValue(outcome.trusted)},
+      {flutter::EncodableValue("reason"),
+       flutter::EncodableValue(outcome.reason)},
+  }));
 }
 
 WindowsHostApi::~WindowsHostApi() {

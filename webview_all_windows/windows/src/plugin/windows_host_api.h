@@ -78,6 +78,9 @@ private:
   std::shared_ptr<LifetimeState> lifetime_state_ =
       std::make_shared<LifetimeState>();
 
+  void HandleValidateCertificateChain(
+      const flutter::MethodCall<flutter::EncodableValue> &call,
+      std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
   std::optional<FlutterError> EnsureWinrtRuntime();
   std::optional<FlutterError> EnsureRenderingPlatform();
   EnvironmentConfiguration
